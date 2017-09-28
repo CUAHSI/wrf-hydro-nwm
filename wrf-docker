@@ -1,0 +1,153 @@
+#!/bin/bash
+
+####################################
+# Author: Tony Castronova
+# Email:  acastronova.cuahsi.org
+# Date:   8.30.2017
+# Org:    CUAHSI
+# Desc:   Utilities for running wrf-hydro in a dockerized container
+####################################
+
+# beautify the errors
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+build-docker-img() {
+  if !  [[ "$1" == n ]]; then
+    docker build -t nwm:1.2 .
+  else
+    echo -e "${RED}--> Exiting Immediately${NC}"
+    echo -e "${RED}--> Come back when you're serious about Hydrology! :-p${NC}"
+    exit -1;
+  fi
+}
+
+check-docker() {
+
+  if  [[ "$(docker images -q nwm:1.2 2> /dev/null)" == "" ]]; then
+     echo -e "${RED}--> [Error] NWM image does not exist${NC}"
+     read -p "I need to build the NWM v1.2 docker image, do you want to continue [Y/n]? " response
+     build-docker-img $response
+  fi
+
+}
+parse-path() {
+  if [[ "$DIRECTORY" = /* ]]; then
+      echo "$DIRECTORY"
+  else 
+      echo "$(pwd)/$DIRECTORY"
+  fi
+}
+
+
+run() {
+
+    # check that the docker image exists
+    check-docker
+
+    # parse the path (abs or rel)
+    wrf_dir=$(parse-path)
+    echo $wrf_dir
+
+
+     # parse args
+#    if [[ $# -ne 1 ]] ;  then
+#	wrf_dir=$1 
+#        sim_dir=$2
+#	echo $wrf_dir
+#	echo $sim_dir
+#	exit -1
+#    else
+#	echo -e "\n${RED}--> [Error] missing wrf-hydro simulation directory${NC}"
+#	echo -e "\n${RED}--> or... ${NC}"
+#	echo -e "\n${RED}--> [Error] missing wrf-hydro simulation name${NC}"
+#
+#	usage
+#	return -1
+#    fi
+
+    # run the container
+#    docker run --rm -u root -v ${wrf_dir}:/wrf-exec nwm:1.2 ls -la /wrf-exec
+#    docker run --rm -u root -ti -v ${wrf_dir}:/wrf-exec -e WRFSIM=${SIMULATION} nwm:1.2 /bin/bash
+    docker run --rm -u root -v ${wrf_dir}:/wrf-exec -e WRFSIM=${SIMULATION} nwm:1.2
+
+}
+
+usage() {
+   EXE='wrf-docker'
+   echo -e "\n********************************************************************"
+   echo -e "****************** WRFHydro-Docker Control Script ******************"
+   echo -e "********************************************************************"
+   echo "* USAGE                                                            *"
+   echo "*   ./wrf-docker -d   # wrf-hydro base directory [Req]             * "
+   echo "*   ./wrf-docker -s   # wrf-hydro simulation name [Req]            * "
+   echo -e "********************************************************************\n"
+}
+
+check-inputs() {
+
+MISSING=0
+if [ -z "$DIRECTORY" ]; then
+    echo Missing required argument DIRECTORY
+    MISSING=1
+fi
+
+if [ -z "$SIMULATION" ]; then
+    echo Missing required argumnet SIMULATION
+    MISSING=1
+fi
+
+if [ $MISSING == 1 ]; then
+    usage
+    exit -1
+fi
+
+
+}
+
+
+while [[ $# -gt 1 ]]
+do
+  key="$1"
+
+  case $key in
+     -d|--extension)
+     DIRECTORY="$2"
+     shift # past argument
+     ;;
+     -s|--searchpath)
+     SIMULATION="$2"
+     shift # past argument
+     ;;
+#     -l|--lib)
+#     LIBPATH="$2"
+#     shift # past argument
+#     ;;
+     --default)
+     DEFAULT=YES
+     ;;
+     *)
+            # unknown option
+     ;;
+  esac
+  shift # past argument or value
+done
+
+check-inputs
+run
+
+
+##echo $1 ${2:-}
+#if [ $# -eq 0 ] ; then
+#    usage
+#    exit 1
+#fi
+#
+#case "$1" in
+#    -d) run ${2:-}
+#        ;;
+#    *) usage
+#        ;;
+#esac
+
+exit 0;
